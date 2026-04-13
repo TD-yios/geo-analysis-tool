@@ -112,16 +112,17 @@ function HistoryPanel({ history, onClose, onAnalyze }: { history: any[]; onClose
 }
 
 // Hero区域组件
-function Hero({ onAnalyze, loading, progress }: { onAnalyze: (url: string, mode: string, depth: number) => void; loading: boolean; progress: any }) {
+function Hero({ onAnalyze, loading, progress, error: externalError }: { onAnalyze: (url: string, mode: string, depth: number) => void; loading: boolean; progress: any; error: string | null }) {
   const [url, setUrl] = useState('');
   const [mode, setMode] = useState('single_page');
   const [depth, setDepth] = useState(2);
-  const [error, setError] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const displayError = externalError || localError;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!url.trim()) {
-      setError('请输入网址');
+      setLocalError('请输入网址');
       return;
     }
 
@@ -130,7 +131,7 @@ function Hero({ onAnalyze, loading, progress }: { onAnalyze: (url: string, mode:
       finalUrl = 'https://' + finalUrl;
     }
 
-    setError(null);
+    setLocalError(null);
     onAnalyze(finalUrl, mode, depth);
   };
 
@@ -152,7 +153,7 @@ function Hero({ onAnalyze, loading, progress }: { onAnalyze: (url: string, mode:
             value={url}
             onChange={(e) => {
               setUrl(e.target.value);
-              setError(null);
+              setLocalError(null);
             }}
             disabled={loading}
             style={{
@@ -226,13 +227,13 @@ function Hero({ onAnalyze, loading, progress }: { onAnalyze: (url: string, mode:
         )}
       </fieldset>
 
-      {error && (
+      {displayError && (
         <div className="error-box" style={{ maxWidth: '640px', margin: '20px auto', background: 'rgba(220, 38, 38, 0.1)', border: '1px solid var(--danger)', borderRadius: 'var(--radius-md)', padding: '20px', textAlign: 'center' }}>
           <h3 style={{ color: 'var(--danger)', marginBottom: '8px' }}>错误</h3>
-          <p style={{ color: 'var(--text)' }}>{error}</p>
+          <p style={{ color: 'var(--text)' }}>{displayError}</p>
         </div>
       )}
-      {!error && loading && (
+      {!displayError && loading && (
         <div className="progress-section" style={{ textAlign: 'center', padding: '60px 0' }}>
           <div className="spinner" style={{ width: '48px', height: '48px', border: '4px solid var(--border)', borderTopColor: 'var(--brand)', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 24px' }}></div>
           <div className="progress-pct" style={{ fontSize: '36px', fontWeight: 700, color: 'var(--brand)' }}>
@@ -1259,9 +1260,11 @@ function App() {
   const [progress, setProgress] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
 
   const handleAnalyze = async (url: string, mode: string = 'single_page', depth: number = 2) => {
     setLoading(true);
+    setAnalyzeError(null);
 
     try {
       // 标准化URL
@@ -1292,8 +1295,9 @@ function App() {
         // 保存历史记录
         saveToHistory(result);
       }
-    } catch (_err) {
-      // 错误已经在SSE或response中处理
+    } catch (err: any) {
+      const errMsg = err?.message || '分析失败，请检查网址是否正确或稍后重试';
+      setAnalyzeError(errMsg);
     } finally {
       setLoading(false);
     }
@@ -1389,10 +1393,15 @@ function App() {
             }
             
             if (parsed.error) {
-              throw new Error(parsed.error);
+              const bizErr = new Error(parsed.error);
+              (bizErr as any).__bizError = true;
+              throw bizErr;
             }
-          } catch (e) {
-            // JSON解析错误，忽略
+          } catch (e: any) {
+            // 只忽略JSON解析错误，重新抛出业务错误
+            if (e?.__bizError) {
+              throw e;
+            }
           }
         }
       }
@@ -1404,7 +1413,7 @@ function App() {
       <Header onShowHistory={handleShowHistory} />
       {!result ? (
         <>
-          <Hero onAnalyze={handleAnalyze} loading={loading} progress={progress} />
+          <Hero onAnalyze={handleAnalyze} loading={loading} progress={progress} error={analyzeError} />
           <Features />
         </>
       ) : (
