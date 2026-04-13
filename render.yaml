@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: geo-analysis-tool
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: NODE_ENV=production node server/index.mjs
+    envVars:
+      - key: NODE_ENV
+        value: production

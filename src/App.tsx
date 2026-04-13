@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { AnalysisResult } from './types';
 import jsPDF from 'jspdf';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3001';
+const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.PROD ? '' : 'http://localhost:3001');
 
 // Header组件
 function Header({ onShowHistory }: { onShowHistory: () => void }) {
