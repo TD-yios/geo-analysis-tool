@@ -642,6 +642,62 @@ function AnalysisResult({ result, onBack }: { result: AnalysisResult; onBack: ()
         )}
       </div>
 
+      {/* 页面归类面板 - 仅全站扫描时显示 */}
+      {result.pageCategories && result.pageCategories.length > 0 && (
+        <div style={{ 
+          background: 'var(--bg-card)', 
+          border: '1px solid var(--border)', 
+          borderRadius: 'var(--radius-md)', 
+          padding: '24px',
+          marginBottom: '32px'
+        }}>
+          <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text)', marginBottom: '16px' }}>
+            📂 页面自动归类
+          </h3>
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+            共扫描 {result.details?.totalPages || 0} 个页面，按类型自动归类如下：
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
+            {result.pageCategories.map((cat, idx) => (
+              <div key={idx} style={{ 
+                padding: '16px', 
+                background: 'var(--bg-inset)', 
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--border)'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontWeight: 600, color: 'var(--text)', fontSize: '14px' }}>{cat.label}</span>
+                  <span style={{ 
+                    fontSize: '12px', 
+                    fontWeight: 600, 
+                    color: getScoreColor(cat.avgScore),
+                    background: `${getScoreColor(cat.avgScore)}1f`,
+                    padding: '2px 8px',
+                    borderRadius: '10px'
+                  }}>
+                    {cat.avgScore}分
+                  </span>
+                </div>
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                  {cat.count} 个页面
+                </div>
+                <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                  {cat.urls.slice(0, 3).map((u, i) => (
+                    <a key={i} href={u} target="_blank" rel="noopener noreferrer" 
+                       style={{ fontSize: '11px', color: 'var(--brand)', textDecoration: 'none', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {u.replace(/^https?:\/\//, '')}
+                    </a>
+                  ))}
+                  {cat.urls.length > 3 && (
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>+{cat.urls.length - 3}个</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* 综合评分卡片 */}
       <div style={{ 
         background: 'var(--bg-card)', 

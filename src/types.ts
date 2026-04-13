@@ -8,6 +8,8 @@ export interface AnalysisResult {
   platformRecommendations?: PlatformRecommendations;
   abTestSuggestions?: ABTestSuggestion[];
   analysisTime?: number;
+  pageCategories?: PageCategory[];
+  mode?: string;
   pageType?: {
     isHomepage: boolean;
     isCategory: boolean;
@@ -64,6 +66,8 @@ export interface AnalysisDetails {
   freshness?: FreshnessAnalysis;
   keywords?: KeywordsAnalysis;
   multiLanguage?: MultiLanguageAnalysis;
+  totalPages?: number;
+  analyzedUrls?: string[];
 }
 
 export interface PlatformRecommendations {
@@ -363,4 +367,12 @@ export interface MultiLanguageAnalysis {
 export interface ExportFormat {
   type: 'html' | 'json';
   data: string;
+}
+
+export interface PageCategory {
+  type: string;
+  label: string;
+  count: number;
+  avgScore: number;
+  urls: string[];
 }

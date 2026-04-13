@@ -3522,6 +3522,39 @@ function aggregateResults(results, baseUrl) {
     return a.difficulty - b.difficulty;
   });
   
+  // 按页面类型自动归类
+  const pageCategories = {};
+  const typeLabels = {
+    homepage: '首页', article: '文章页', category: '分类页', product: '产品页',
+    about: '关于页', contact: '联系页', blog: '博客页', faq: 'FAQ页',
+    documentation: '文档页', landing: '落地页', search: '搜索页',
+    tool: '工具页', pricing: '定价页', other: '其他页面'
+  };
+  results.forEach(result => {
+    const type = result.pageType?.type || 'other';
+    if (!pageCategories[type]) {
+      pageCategories[type] = {
+        label: typeLabels[type] || type,
+        count: 0,
+        totalScore: 0,
+        urls: []
+      };
+    }
+    pageCategories[type].count++;
+    pageCategories[type].totalScore += result.overallScore || 0;
+    pageCategories[type].urls.push(result.url);
+  });
+  // 计算各类平均分并排序
+  const pageCategoriesList = Object.entries(pageCategories)
+    .map(([type, data]) => ({
+      type,
+      label: data.label,
+      count: data.count,
+      avgScore: Math.round(data.totalScore / data.count),
+      urls: data.urls
+    }))
+    .sort((a, b) => b.count - a.count);
+
   return {
     url: baseUrl,
     timestamp: Date.now(),
@@ -3533,6 +3566,7 @@ function aggregateResults(results, baseUrl) {
       totalPages: results.length,
       analyzedUrls: results.map(r => r.url)
     },
+    pageCategories: pageCategoriesList,
     recommendations: recommendations.slice(0, 20), // 限制建议数量
     analysisTime: Date.now() - (results[0]?.timestamp ? results[0].timestamp - (results[0].analysisTime || 0) : Date.now()),
     pageType: results[0]?.pageType,
