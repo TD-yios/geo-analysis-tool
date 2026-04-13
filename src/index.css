@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* 背景色阶 */
+  --bg-app: #f3f5f7;
+  --bg-sidebar: #fafbfc;
+  --bg-card: #ffffff;
+  --bg-inset: #f7f9fb;
+  --bg-hover: #f0f2f5;
+
+  /* 品牌色 - 暖橙色 */
+  --brand: #ea580c;
+  --brand-light: #ffedd5;
+  --brand-border: #fdba74;
+
+  /* 文字 */
+  --text: #1a1f26;
+  --text-secondary: #4b5563;
+  --text-muted: #8b95a5;
+
+  /* 边框 */
+  --border: #e2e6eb;
+  --border-light: #eef1f4;
+
+  /* 状态色 */
+  --success: #0d9488;
+  --warning: #d97706;
+  --danger: #dc2626;
+
+  /* 尺寸 */
+  --sidebar-w: 240px;
+  --topbar-h: 56px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, sans-serif;
+  background: var(--bg-app);
+  color: var(--text);
+  line-height: 1.6;
+}
