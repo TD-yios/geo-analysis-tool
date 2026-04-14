@@ -39,20 +39,34 @@ const historyStorage = new Map(); // IP -> Array of analysis results
 
 // AI爬虫列表
 const AI_CRAWLERS = [
+  // OpenAI 系列
   { name: 'GPTBot', userAgent: 'GPTBot', description: 'OpenAI GPT爬虫' },
   { name: 'ChatGPT-User', userAgent: 'ChatGPT-User', description: 'ChatGPT用户代理' },
+  { name: 'OAI-SearchBot', userAgent: 'OAI-SearchBot', description: 'OpenAI搜索爬虫' },
+  { name: 'GPTBot-Test', userAgent: 'GPTBot-Test', description: 'OpenAI GPT测试爬虫' },
+  // Anthropic 系列
   { name: 'ClaudeBot', userAgent: 'ClaudeBot', description: 'Anthropic Claude爬虫' },
   { name: 'Claude-Web', userAgent: 'Claude-Web', description: 'Claude Web爬虫' },
+  // Google AI 系列
+  { name: 'Google-Extended', userAgent: 'Google-Extended', description: 'Google AI训练数据爬虫' },
+  { name: 'GoogleOther', userAgent: 'GoogleOther', description: 'Google其他AI爬虫' },
+  { name: 'Googlebot', userAgent: 'Googlebot', description: 'Google通用爬虫(AI概览数据源)' },
+  // Perplexity 系列
   { name: 'PerplexityBot', userAgent: 'PerplexityBot', description: 'Perplexity AI爬虫' },
-  { name: 'Google-Extended', userAgent: 'Google-Extended', description: 'Google扩展爬虫' },
-  { name: 'GoogleOther', userAgent: 'GoogleOther', description: 'Google其他爬虫' },
-  { name: 'Bingbot', userAgent: 'Bingbot', description: 'Bing爬虫' },
-  { name: 'Slurp', userAgent: 'Slurp', description: 'Yahoo Slurp爬虫' },
-  { name: 'DuckDuckBot', userAgent: 'DuckDuckBot', description: 'DuckDuckGo爬虫' },
-  { name: 'Baiduspider', userAgent: 'Baiduspider', description: '百度爬虫' },
-  { name: 'YandexBot', userAgent: 'YandexBot', description: 'Yandex爬虫' },
-  { name: 'facebookexternalhit', userAgent: 'facebookexternalhit', description: 'Facebook爬虫' },
-  { name: 'Twitterbot', userAgent: 'Twitterbot', description: 'Twitter爬虫' }
+  { name: 'Perplexity-Chat', userAgent: 'Perplexity-Chat', description: 'Perplexity聊天爬虫' },
+  // 其他 AI 爬虫
+  { name: 'Applebot-Extended', userAgent: 'Applebot-Extended', description: 'Apple AI训练爬虫' },
+  { name: 'Bytespider', userAgent: 'Bytespider', description: '字节跳动AI爬虫(豆包/TikTok)' },
+  { name: 'CCBot', userAgent: 'CCBot', description: 'Common Crawl AI训练爬虫' },
+  { name: 'YouBot', userAgent: 'YouBot', description: 'You.com AI搜索爬虫' },
+  { name: 'Amazonbot', userAgent: 'Amazonbot', description: 'Amazon AI爬虫' },
+  { name: 'SemrushBot-BA', userAgent: 'SemrushBot-BA', description: 'Semrush AI内容分析爬虫' },
+  { name: 'AI2Bot', userAgent: 'AI2Bot', description: 'Allen Institute AI爬虫' },
+  { name: 'Diffbot', userAgent: 'Diffbot', description: 'Diffbot AI数据提取爬虫' },
+  { name: 'FacebookBot', userAgent: 'FacebookBot', description: 'Meta AI训练爬虫' },
+  // 中国 AI 爬虫
+  { name: 'Baiduspider', userAgent: 'Baiduspider', description: '百度爬虫(文心一言数据源)' },
+  { name: 'YandexBot', userAgent: 'YandexBot', description: 'Yandex爬虫(AI数据源)' }
 ];
 
 // 检查robots.txt中的AI爬虫配置
@@ -184,15 +198,38 @@ function analyzeCitability(html, $, pageType) {
     ? paragraphLengths.reduce((a, b) => a + b, 0) / paragraphLengths.length
     : 0;
 
-  // 最佳段落长度比例（40-200字，适合中文和英文）
-  const optimalLengthCount = paragraphLengths.filter(len => len >= 40 && len <= 200).length;
+  // 最佳段落长度比例 - 基于GEO研究：AI最易引用134-167词(英文) / 80-200字(中文)的段落
+  const optimalLengthCount = citParagraphs.filter(p => {
+    const cnChars = (p.match(/[\u4e00-\u9fa5]/g) || []).length;
+    const enWords = p.split(/\s+/).filter(w => w.length > 2).length;
+    // 中文：80-200字为最佳引用长度
+    if (cnChars > enWords) return cnChars >= 80 && cnChars <= 200;
+    // 英文：134-167词为最佳引用长度（GEO研究数据）
+    return enWords >= 100 && enWords <= 200;
+  }).length;
   const optimalLengthRatio = paragraphLengths.length > 0 ? optimalLengthCount / paragraphLengths.length : 0;
 
-  // 检测自包含内容 - 支持中英文
+  // AI引用就绪段落评分 - 段落越接近最佳长度，引用概率越高
+  const citationReadiness = citParagraphs.length > 0
+    ? citParagraphs.reduce((sum, p) => {
+        const cnChars = (p.match(/[\u4e00-\u9fa5]/g) || []).length;
+        const enWords = p.split(/\s+/).filter(w => w.length > 2).length;
+        const isChinese = cnChars > enWords;
+        const len = isChinese ? cnChars : enWords;
+        const optimal = isChinese ? 140 : 150; // 最佳中点
+        const range = isChinese ? 60 : 34; // 半宽
+        // 高斯评分：越接近最佳长度分越高
+        const score = Math.max(0, 100 - Math.pow((len - optimal) / range, 2) * 100);
+        return sum + score;
+      }, 0) / citParagraphs.length
+    : 0;
+
+  // 检测自包含内容 - 支持中英文，基于134-167词研究
   const hasSelfContainedContent = citParagraphs.some(p => {
     const cnChars = (p.match(/[\u4e00-\u9fa5]/g) || []).length;
     const enWords = p.split(/\s+/).filter(w => w.length > 2).length;
-    return (cnChars >= 50 && cnChars <= 300) || (enWords >= 30 && enWords <= 150);
+    // 中文：50-300字自包含段落；英文：100-200词（覆盖134-167最佳区间）
+    return (cnChars >= 50 && cnChars <= 300) || (enWords >= 100 && enWords <= 200);
   });
 
   // 事实密度检测 - 多格式（数字、日期、货币、度量等）
@@ -213,6 +250,7 @@ function analyzeCitability(html, $, pageType) {
   const citabilityScore = {
     avgParagraphLength: Math.round(avgParagraphLength),
     optimalLengthRatio: Math.round(optimalLengthRatio * 100),
+    citationReadiness: Math.round(citationReadiness),
     hasSelfContainedContent,
     factDensity: Math.round(factDensity * 10) / 10,
     hasQuestionAnswer,
@@ -222,14 +260,16 @@ function analyzeCitability(html, $, pageType) {
 
   // 计算综合可引用性评分 - 使用加权算法
   const citabilityWeights = {
-    optimalLengthRatio: 25,
-    hasSelfContainedContent: 25,
-    factDensity: 25,
-    hasQuestionAnswer: 15,
-    hasClearStructure: 10,
+    citationReadiness: 30,
+    optimalLengthRatio: 15,
+    hasSelfContainedContent: 20,
+    factDensity: 20,
+    hasQuestionAnswer: 10,
+    hasClearStructure: 5,
   };
 
   const citabilityScores = {
+    citationReadiness: citationReadiness,
     optimalLengthRatio: optimalLengthRatio * 100,
     hasSelfContainedContent: hasSelfContainedContent ? 100 : 0,
     factDensity: Math.min(factDensity * 50, 100),
@@ -1409,7 +1449,11 @@ async function analyzeWebsite(targetUrl) {
 
     // 5. AI引用分析
     let aiCitation;
-    try { aiCitation = analyzeAiCitation(html, $, targetUrl); } catch (e) { console.error('analyzeAiCitation error:', e.message); aiCitation = { brandMentioned: false, contentQualityScore: 30, sentimentScore: 60, sentimentDetails: { positiveCount: 0, negativeCount: 0, totalSentimentWords: 0, sentiment: '中性' } }; }
+    try { aiCitation = analyzeAiCitation(html, $, targetUrl); } catch (e) { console.error('analyzeAiCitation error:', e.message); aiCitation = { brandMentioned: false, brandName: '', contentQualityScore: 30, sentimentScore: 60, sentimentDetails: { positiveCount: 0, negativeCount: 0, totalSentimentWords: 0, sentiment: '中性' } }; }
+
+    // 5.1 跨平台品牌提及扫描
+    let brandMentions;
+    try { brandMentions = await scanBrandMentions(aiCitation.brandName, targetUrl); } catch (e) { console.error('scanBrandMentions error:', e.message); brandMentions = { platforms: [], totalMentions: 0, visibility: 0 }; }
 
     // 6. AI爬虫配置检查
     let robotsAnalysis;
@@ -1417,7 +1461,7 @@ async function analyzeWebsite(targetUrl) {
 
     // 7. 内容可引用性评分
     let citability;
-    try { citability = analyzeCitability(html, $, pageType); } catch (e) { console.error('analyzeCitability error:', e.message); citability = { avgParagraphLength: 0, optimalLengthRatio: 0, hasSelfContainedContent: false, factDensity: 0, hasQuestionAnswer: false, hasClearStructure: false, overallScore: 0 }; }
+    try { citability = analyzeCitability(html, $, pageType); } catch (e) { console.error('analyzeCitability error:', e.message); citability = { avgParagraphLength: 0, optimalLengthRatio: 0, citationReadiness: 0, hasSelfContainedContent: false, factDensity: 0, hasQuestionAnswer: false, hasClearStructure: false, overallScore: 0 }; }
 
     // 8. 内容新鲜度检测
     let freshness;
@@ -1437,6 +1481,7 @@ async function analyzeWebsite(targetUrl) {
       contentStructure,
       eeat,
       aiCitation,
+      brandMentions,
       robotsAnalysis,
       citability,
       freshness,
@@ -2326,7 +2371,88 @@ function analyzeContentStructure(html, $, pageType = { type: 'other' }, url = ''
   };
 }
 
+// 跨平台品牌提及扫描
+async function scanBrandMentions(brandName, url) {
+  if (!brandName || brandName.length < 2) {
+    return { platforms: [], totalMentions: 0, visibility: 0 };
+  }
+
+  const hostname = (() => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; } })();
+  const searchBrand = brandName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const searchDomain = hostname.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  const platforms = [
+    { name: 'Wikipedia', site: 'wikipedia.org', icon: '📚', weight: 30 },
+    { name: 'YouTube', site: 'youtube.com', icon: '🎬', weight: 20 },
+    { name: 'Reddit', site: 'reddit.com', icon: '💬', weight: 15 },
+    { name: 'LinkedIn', site: 'linkedin.com', icon: '💼', weight: 15 },
+    { name: 'GitHub', site: 'github.com', icon: '🐙', weight: 10 },
+    { name: 'HackerNews', site: 'news.ycombinator.com', icon: '📰', weight: 10 },
+    { name: 'Quora', site: 'quora.com', icon: '❓', weight: 8 },
+    { name: 'Medium', site: 'medium.com', icon: '📝', weight: 8 },
+    { name: 'StackOverflow', site: 'stackoverflow.com', icon: '🔧', weight: 8 },
+    { name: 'X (Twitter)', site: 'x.com', icon: '🐦', weight: 12 },
+  ];
+
+  const results = [];
+  let totalWeight = 0;
+  let achievedWeight = 0;
+
+  for (const platform of platforms) {
+    totalWeight += platform.weight;
+    try {
+      // 使用搜索引擎查询品牌在特定平台的提及
+      const query = encodeURIComponent(`"${brandName}" site:${platform.site}`);
+      const searchUrl = `https://html.duckduckgo.com/html/?q=${query}`;
+      const response = await fetchWithRetry(searchUrl, { timeout: 5000, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; GEO-Analyzer/1.0)' } });
+      const html = response.data;
+
+      // 检查是否有搜索结果
+      const hasResults = html.includes('result__a') || html.includes('result__snippet') ||
+                         (html.includes(platform.site) && html.length > 5000);
+
+      if (hasResults) {
+        // 估算提及数量（粗略：结果页面中的链接数）
+        const linkMatches = (html.match(/result__a/g) || []).length;
+        const mentionCount = Math.max(1, linkMatches);
+        results.push({
+          ...platform,
+          found: true,
+          mentionCount,
+          searchUrl: `https://duckduckgo.com/?q=${query}`
+        });
+        achievedWeight += platform.weight;
+      } else {
+        results.push({
+          ...platform,
+          found: false,
+          mentionCount: 0,
+          searchUrl: `https://duckduckgo.com/?q=${query}`
+        });
+      }
+    } catch (e) {
+      results.push({
+        ...platform,
+        found: false,
+        mentionCount: 0,
+        error: e.message
+      });
+    }
+  }
+
+  const visibility = totalWeight > 0 ? Math.round((achievedWeight / totalWeight) * 100) : 0;
+  const totalMentions = results.reduce((sum, r) => sum + (r.mentionCount || 0), 0);
+
+  return { platforms: results, totalMentions, visibility };
+}
+
 function analyzeAiCitation(html, $, url) {
+  // 提取品牌名称 - 多重策略
+  const brandName = $('meta[property="og:site_name"]').attr('content') ||
+                    $('meta[name="application-name"]').attr('content') ||
+                    $('meta[name="copyright"]').attr('content')?.replace(/[©️\d\s]+/g, '').trim() ||
+                    (() => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; } })();
+
   // 检测品牌/站点名称 - 多重策略
   const brandMentioned = $('meta[name="application-name"]').length > 0 ||
                          $('meta[property="og:site_name"]').length > 0 ||
@@ -2469,6 +2595,7 @@ function analyzeAiCitation(html, $, url) {
 
   return {
     brandMentioned,
+    brandName,
     contentQualityScore,
     sentimentScore,
     sentimentDetails
@@ -3251,6 +3378,7 @@ function getFallbackAnalysis(url) {
     citability: {
       avgParagraphLength: 0,
       optimalLengthRatio: 0,
+      citationReadiness: 0,
       hasSelfContainedContent: false,
       factDensity: 0,
       hasQuestionAnswer: false,

@@ -263,7 +263,7 @@ function Features() {
     <section className="features" style={{ maxWidth: '1200px', margin: '0 auto 60px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px' }}>
       <article className="dim-card" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '24px' }}>
         <h2 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '8px', color: 'var(--text)' }}>AI爬虫配置检查</h2>
-        <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>检测14+个AI爬虫（GPTBot、ClaudeBot等）的robots.txt配置，确保AI搜索引擎可以访问您的站点</p>
+        <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>检测22+个AI爬虫（GPTBot、ClaudeBot、PerplexityBot等）的robots.txt配置，确保AI搜索引擎可以访问您的站点</p>
       </article>
       <article className="dim-card" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '24px' }}>
         <h2 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '8px', color: 'var(--text)' }}>内容可引用性评分</h2>
@@ -936,6 +936,70 @@ function AnalysisResult({ result, onBack }: { result: AnalysisResult; onBack: ()
                     {crawler.status === 'allowed' ? '允许' : crawler.status === 'blocked' ? '阻止' : '未知'}
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>{crawler.recommendation}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 跨平台品牌提及扫描 */}
+      {result.details?.brandMentions && result.details.brandMentions.platforms?.length > 0 && (
+        <div style={{ marginBottom: '32px' }}>
+          <h3 style={{ fontSize: '20px', fontWeight: '600', color: 'var(--text)', marginBottom: '20px' }}>
+            🔍 跨平台品牌提及
+          </h3>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '24px' }}>
+            <div style={{ display: 'flex', gap: '24px', marginBottom: '20px', flexWrap: 'wrap' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '36px', fontWeight: 700, color: getScoreColor(result.details.brandMentions.visibility) }}>
+                  {result.details.brandMentions.visibility}%
+                </div>
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>品牌可见度</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '36px', fontWeight: 700, color: 'var(--brand)' }}>
+                  {result.details.brandMentions.totalMentions}
+                </div>
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>总提及数</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '36px', fontWeight: 700, color: 'var(--text)' }}>
+                  {result.details.brandMentions.platforms.filter(p => p.found).length}/{result.details.brandMentions.platforms.length}
+                </div>
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>覆盖平台</div>
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '10px' }}>
+              {result.details.brandMentions.platforms.map((platform, idx) => (
+                <div key={idx} style={{
+                  padding: '12px',
+                  background: 'var(--bg-inset)',
+                  borderRadius: 'var(--radius-sm)',
+                  border: `1px solid ${platform.found ? 'var(--success)' : 'var(--border)'}`,
+                  opacity: platform.error ? 0.6 : 1
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text)' }}>
+                      {platform.icon} {platform.name}
+                    </span>
+                    {platform.found ? (
+                      <span style={{ fontSize: '12px', color: 'var(--success)', fontWeight: 600 }}>✓ 发现</span>
+                    ) : (
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>未发现</span>
+                    )}
+                  </div>
+                  {platform.found && platform.mentionCount > 0 && (
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                      约 {platform.mentionCount} 条结果
+                    </div>
+                  )}
+                  {platform.searchUrl && (
+                    <a href={platform.searchUrl} target="_blank" rel="noopener noreferrer"
+                       style={{ fontSize: '11px', color: 'var(--brand)', textDecoration: 'none', display: 'inline-block', marginTop: '4px' }}>
+                      查看搜索结果 →
+                    </a>
+                  )}
                 </div>
               ))}
             </div>

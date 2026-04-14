@@ -61,6 +61,7 @@ export interface AnalysisDetails {
   contentStructure: ContentStructureAnalysis;
   eeat: EeatAnalysis;
   aiCitation: AiCitationAnalysis;
+  brandMentions?: BrandMentionsAnalysis;
   robotsAnalysis?: RobotsAnalysis;
   citability?: CitabilityAnalysis;
   freshness?: FreshnessAnalysis;
@@ -318,6 +319,7 @@ export interface Recommendation {
 export interface CitabilityAnalysis {
   avgParagraphLength: number;
   optimalLengthRatio: number;
+  citationReadiness: number;
   hasSelfContainedContent: boolean;
   factDensity: number;
   hasQuestionAnswer: boolean;
@@ -375,4 +377,19 @@ export interface PageCategory {
   count: number;
   avgScore: number;
   urls: string[];
+}
+
+export interface BrandMentionsAnalysis {
+  platforms: Array<{
+    name: string;
+    site: string;
+    icon: string;
+    weight: number;
+    found: boolean;
+    mentionCount: number;
+    searchUrl?: string;
+    error?: string;
+  }>;
+  totalMentions: number;
+  visibility: number;
 }
