@@ -485,109 +485,202 @@ function AnalysisResult({ result, onBack }: { result: AnalysisResult; onBack: ()
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
-    let yPosition = 20;
+    const margin = 20;
+    const contentWidth = pageWidth - margin * 2;
+    let y = 15;
 
-    // 标题
-    doc.setFontSize(24);
-    doc.setTextColor(30, 30, 30);
-    doc.text('GEO 分析报告', pageWidth / 2, yPosition, { align: 'center' });
-    yPosition += 15;
+    const addPageIfNeeded = (needed: number) => {
+      if (y + needed > pageHeight - 20) { doc.addPage(); y = 15; }
+    };
 
-    // URL
-    doc.setFontSize(12);
-    doc.setTextColor(100, 100, 100);
-    doc.text(result.url, pageWidth / 2, yPosition, { align: 'center' });
-    yPosition += 10;
-
-    // 日期
-    doc.setFontSize(10);
-    doc.text(new Date(result.timestamp).toLocaleString('zh-CN'), pageWidth / 2, yPosition, { align: 'center' });
-    yPosition += 20;
-
-    // 综合评分
-    doc.setFontSize(16);
-    doc.setTextColor(30, 30, 30);
-    doc.text(`综合评分: ${Math.round(result.overallScore)}`, 20, yPosition);
-    yPosition += 10;
-
-    // 评分进度条
+    // === 封面 ===
     doc.setFillColor(234, 88, 12);
-    doc.rect(20, yPosition, pageWidth - 40, 8, 'F');
-    doc.setFillColor(255, 255, 255);
-    doc.rect(20, yPosition, (pageWidth - 40) * (result.overallScore / 100), 8, 'F');
-    yPosition += 20;
+    doc.rect(0, 0, pageWidth, 45, 'F');
+    doc.setFontSize(26);
+    doc.setTextColor(255, 255, 255);
+    doc.text('GEO Analysis Report', pageWidth / 2, 22, { align: 'center' });
+    doc.setFontSize(10);
+    doc.text('AI Search Engine Optimization', pageWidth / 2, 34, { align: 'center' });
+    y = 58;
 
-    // 维度分数
-    doc.setFontSize(14);
+    // URL & meta
+    doc.setFontSize(11);
     doc.setTextColor(30, 30, 30);
-    doc.text('维度分数', 20, yPosition);
-    yPosition += 10;
+    doc.text('URL:', margin, y);
+    doc.setTextColor(80, 80, 80);
+    const urlLines = doc.splitTextToSize(result.url, contentWidth - 20);
+    doc.text(urlLines, margin + 18, y);
+    y += urlLines.length * 5 + 4;
+    doc.setTextColor(30, 30, 30);
+    doc.text('Date:', margin, y);
+    doc.setTextColor(80, 80, 80);
+    doc.text(new Date(result.timestamp).toLocaleString('zh-CN'), margin + 18, y);
+    y += 12;
 
-    dimensions.forEach((dimension) => {
-      if (yPosition > pageHeight - 30) {
-        doc.addPage();
-        yPosition = 20;
-      }
+    // === 综合评分 ===
+    addPageIfNeeded(55);
+    const sc = getScoreColor(result.overallScore).replace('#', '');
+    const sr = parseInt(sc.substring(0, 2), 16);
+    const sg = parseInt(sc.substring(2, 4), 16);
+    const sb = parseInt(sc.substring(4, 6), 16);
 
-      doc.setFontSize(11);
-      doc.setTextColor(60, 60, 60);
-      doc.text(`${dimension.name}: ${Math.round(dimension.score)}`, 25, yPosition);
-      yPosition += 7;
-
-      // 进度条
-      const scoreColor = dimension.score >= 80 ? [34, 197, 94] : dimension.score >= 60 ? [234, 179, 8] : dimension.score >= 50 ? [59, 130, 246] : [239, 68, 68];
-      doc.setFillColor(229, 231, 235);
-      doc.rect(25, yPosition, pageWidth - 50, 4, 'F');
-      doc.setFillColor(scoreColor[0] as number, scoreColor[1] as number, scoreColor[2] as number);
-      doc.rect(25, yPosition, (pageWidth - 50) * (dimension.score / 100), 4, 'F');
-      yPosition += 10;
-    });
-
-    yPosition += 10;
-
-    // 优化建议
-    if (yPosition > pageHeight - 50) {
-      doc.addPage();
-      yPosition = 20;
+    // 分数圆环
+    const cx = pageWidth / 2, cy = y + 28, r = 24;
+    doc.setLineWidth(6);
+    doc.setDrawColor(229, 231, 235);
+    doc.circle(cx, cy, r, 'S');
+    doc.setDrawColor(sr, sg, sb);
+    // 画分数弧（近似用粗线段）
+    const angle = (result.overallScore / 100) * 360;
+    for (let a = 0; a < angle; a += 5) {
+      const rad = ((a - 90) * Math.PI) / 180;
+      const x1 = cx + (r - 3) * Math.cos(rad);
+      const y1 = cy + (r - 3) * Math.sin(rad);
+      const x2 = cx + (r + 3) * Math.cos(rad);
+      const y2 = cy + (r + 3) * Math.sin(rad);
+      doc.line(x1, y1, x2, y2);
     }
+    doc.setFontSize(28);
+    doc.setTextColor(sr, sg, sb);
+    doc.text(`${Math.round(result.overallScore)}`, cx, cy + 4, { align: 'center' });
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text(getGradeLabel(result.overallScore), cx, cy + 12, { align: 'center' });
+    y = cy + r + 18;
 
+    // === 维度柱状图 ===
+    addPageIfNeeded(60);
     doc.setFontSize(14);
     doc.setTextColor(30, 30, 30);
-    doc.text('优化建议', 20, yPosition);
-    yPosition += 10;
+    doc.text('Dimension Scores', margin, y);
+    y += 8;
 
-    result.recommendations.slice(0, 10).forEach((rec) => {
-      if (yPosition > pageHeight - 40) {
-        doc.addPage();
-        yPosition = 20;
-      }
-
-      // 优先级标签
-      const priorityColor = rec.priority === 'high' ? [239, 68, 68] : rec.priority === 'medium' ? [249, 115, 22] : [59, 130, 246];
-      doc.setFillColor(priorityColor[0] as number, priorityColor[1] as number, priorityColor[2] as number);
-      doc.roundedRect(20, yPosition - 5, 30, 8, 1, 1, 'F');
+    const barH = 12, barGap = 5;
+    dimensions.forEach((dim) => {
+      addPageIfNeeded(barH + barGap + 5);
+      const dc = getScoreColor(dim.score).replace('#', '');
+      const dr = parseInt(dc.substring(0, 2), 16);
+      const dg = parseInt(dc.substring(2, 4), 16);
+      const db = parseInt(dc.substring(4, 6), 16);
+      doc.setFontSize(9);
+      doc.setTextColor(60, 60, 60);
+      doc.text(`${dim.name}`, margin, y + barH / 2 + 2);
+      const barStart = margin + 55;
+      const barW = contentWidth - 55;
+      doc.setFillColor(229, 231, 235);
+      doc.roundedRect(barStart, y, barW, barH, 2, 2, 'F');
+      doc.setFillColor(dr, dg, db);
+      const fillW = Math.max(2, barW * (dim.score / 100));
+      doc.roundedRect(barStart, y, fillW, barH, 2, 2, 'F');
       doc.setFontSize(8);
       doc.setTextColor(255, 255, 255);
-      const priorityText = rec.priority === 'high' ? '严重' : rec.priority === 'medium' ? '警告' : '建议';
-      doc.text(priorityText, 35, yPosition + 1, { align: 'center' });
+      if (fillW > 14) doc.text(`${Math.round(dim.score)}`, barStart + fillW - 10, y + barH / 2 + 2);
+      y += barH + barGap;
+    });
+    y += 5;
 
-      // 标题
-      doc.setFontSize(11);
+    // === AI 爬虫状态表 ===
+    if (result.details?.robotsAnalysis?.aiCrawlers && (result.details.robotsAnalysis.aiCrawlers as any[]).length > 0) {
+      addPageIfNeeded(40);
+      doc.setFontSize(14);
       doc.setTextColor(30, 30, 30);
-      const titleLines = doc.splitTextToSize(rec.title, pageWidth - 70);
-      doc.text(titleLines, 58, yPosition + 1);
-      yPosition += titleLines.length * 5 + 5;
+      doc.text('AI Crawler Status', margin, y);
+      y += 6;
 
-      // 描述
-      doc.setFontSize(9);
-      doc.setTextColor(100, 100, 100);
-      const descLines = doc.splitTextToSize(rec.description, pageWidth - 50);
-      doc.text(descLines, 25, yPosition);
-      yPosition += descLines.length * 4 + 8;
+      const crawlers = (result.details.robotsAnalysis.aiCrawlers as any[]).slice(0, 12);
+      (doc as any).autoTable({
+        startY: y,
+        head: [['Crawler', 'Status', 'Recommendation']],
+        body: crawlers.map((c: any) => [c.name, c.status === 'allowed' ? 'Allowed' : c.status === 'blocked' ? 'Blocked' : 'Unknown', c.recommendation]),
+        margin: { left: margin, right: margin },
+        styles: { fontSize: 8, cellPadding: 3 },
+        headStyles: { fillColor: [234, 88, 12], textColor: 255, fontStyle: 'bold' },
+        bodyStyles: { textColor: 50 },
+        didParseCell: (data: any) => {
+          if (data.section === 'body' && data.column.index === 1) {
+            const val = data.cell.raw;
+            if (val === 'Allowed') data.cell.styles.textColor = [34, 197, 94];
+            else if (val === 'Blocked') data.cell.styles.textColor = [239, 68, 68];
+            else data.cell.styles.textColor = [156, 163, 175];
+          }
+        }
+      });
+      y = (doc as any).lastAutoTable.finalY + 10;
+    }
+
+    // === 品牌提及 ===
+    if (result.details?.brandMentions && result.details.brandMentions.platforms?.length > 0) {
+      addPageIfNeeded(40);
+      doc.setFontSize(14);
+      doc.setTextColor(30, 30, 30);
+      doc.text('Brand Mentions', margin, y);
+      y += 6;
+
+      const bm = result.details.brandMentions;
+      doc.setFontSize(10);
+      doc.setTextColor(80, 80, 80);
+      doc.text(`Visibility: ${bm.visibility}%  |  Mentions: ${bm.totalMentions}  |  Platforms: ${bm.platforms.filter(p => p.found).length}/${bm.platforms.length}`, margin, y);
+      y += 8;
+
+      (doc as any).autoTable({
+        startY: y,
+        head: [['Platform', 'Found', 'Mentions']],
+        body: bm.platforms.map((p: any) => [`${p.icon} ${p.name}`, p.found ? 'Yes' : 'No', p.mentionCount || 0]),
+        margin: { left: margin, right: margin },
+        styles: { fontSize: 8, cellPadding: 3 },
+        headStyles: { fillColor: [234, 88, 12], textColor: 255, fontStyle: 'bold' },
+        bodyStyles: { textColor: 50 },
+        didParseCell: (data: any) => {
+          if (data.section === 'body' && data.column.index === 1) {
+            data.cell.styles.textColor = data.cell.raw === 'Yes' ? [34, 197, 94] : [156, 163, 175];
+          }
+        }
+      });
+      y = (doc as any).lastAutoTable.finalY + 10;
+    }
+
+    // === 优化建议表 ===
+    addPageIfNeeded(40);
+    doc.setFontSize(14);
+    doc.setTextColor(30, 30, 30);
+    doc.text('Recommendations', margin, y);
+    y += 6;
+
+    (doc as any).autoTable({
+      startY: y,
+      head: [['Priority', 'Category', 'Title', 'Action']],
+      body: result.recommendations.slice(0, 15).map((rec: any) => [
+        rec.priority === 'high' ? 'HIGH' : rec.priority === 'medium' ? 'MED' : 'LOW',
+        rec.category,
+        rec.title,
+        rec.action || rec.description
+      ]),
+      margin: { left: margin, right: margin },
+      styles: { fontSize: 7, cellPadding: 3, overflow: 'linebreak' },
+      headStyles: { fillColor: [234, 88, 12], textColor: 255, fontStyle: 'bold' },
+      bodyStyles: { textColor: 50 },
+      columnStyles: { 0: { cellWidth: 18 }, 1: { cellWidth: 30 } },
+      didParseCell: (data: any) => {
+        if (data.section === 'body' && data.column.index === 0) {
+          const val = data.cell.raw;
+          if (val === 'HIGH') data.cell.styles.fillColor = [254, 226, 226];
+          else if (val === 'MED') data.cell.styles.fillColor = [254, 243, 199];
+          else data.cell.styles.fillColor = [219, 234, 254];
+        }
+      }
     });
 
-    // 保存PDF
-    doc.save(`GEO分析报告_${result.url.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.pdf`);
+    // 页脚
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      doc.text(`GEO Analysis Report - ${result.url}`, margin, pageHeight - 10);
+      doc.text(`Page ${i} / ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
+    }
+
+    doc.save(`GEO_Report_${result.url.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.pdf`);
   };
 
   return (
