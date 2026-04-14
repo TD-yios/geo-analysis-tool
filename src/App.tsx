@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { AnalysisResult } from './types';
 import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.PROD ? '' : 'http://localhost:3001');
 

@@ -1029,6 +1029,7 @@ async function fetchWithRetry(url, options = {}, retries = MAX_RETRIES) {
         responseType: 'text',
         decompress: true,
         maxRedirects: 5,
+        httpsAgent: options.httpsAgent || new (await import('https')).Agent({ rejectUnauthorized: false }),
       });
       return response;
     } catch (error) {
@@ -3356,6 +3357,7 @@ function getFallbackAnalysis(url) {
     },
     aiCitation: {
       brandMentioned: false,
+      brandName: '',
       contentQualityScore: 50,
       sentimentScore: 60,
       sentimentDetails: {
@@ -3365,15 +3367,15 @@ function getFallbackAnalysis(url) {
         sentiment: '中性'
       }
     },
+    brandMentions: {
+      platforms: [],
+      totalMentions: 0,
+      visibility: 0
+    },
     robotsAnalysis: {
       exists: false,
       content: null,
-      aiCrawlers: [
-        { name: 'GPTBot', userAgent: 'GPTBot', description: 'OpenAI的网页爬虫', status: 'unknown', recommendation: '无法检测，请手动检查robots.txt' },
-        { name: 'Google Extended', userAgent: 'Google-Extended', description: 'Google的AI训练爬虫', status: 'unknown', recommendation: '无法检测，请手动检查robots.txt' },
-        { name: 'CCBot', userAgent: 'CCBot', description: 'Common Crawl爬虫', status: 'unknown', recommendation: '无法检测，请手动检查robots.txt' },
-        { name: 'Baiduspider', userAgent: 'Baiduspider', description: '百度爬虫', status: 'unknown', recommendation: '无法检测，请手动检查robots.txt' }
-      ]
+      aiCrawlers: AI_CRAWLERS.map(crawler => ({ ...crawler, status: 'unknown', recommendation: '无法检测，请手动检查robots.txt' }))
     },
     citability: {
       avgParagraphLength: 0,
